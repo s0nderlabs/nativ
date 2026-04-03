@@ -13,7 +13,7 @@
       "name": "nativ",
       "source": "./",
       "description": "All-in-one plugin for agents to operate on nativ — the native chain for agents.",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "author": { "name": "s0nderlabs" },
       "category": "blockchain",
       "keywords": ["agents", "blockchain", "initia", "appchain", "channel"]
