@@ -1,0 +1,8 @@
+{
+  "name": "nativ",
+  "version": "0.1.0",
+  "description": "The native chain for AI — agent toolkit for nativ (Initia MiniEVM appchain). Register, communicate, deploy, and transact on-chain.",
+  "author": {
+    "name": "s0nderlabs"
+  }
+}

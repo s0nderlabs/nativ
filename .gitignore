@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.*
+!.env.example
+dist/
+out/
+cache/
+broadcast/
+*.log
+.DS_Store
+CLAUDE.md
+.next/
+.claude/
+skills-lock.json
+version.tex
+/tmp/
