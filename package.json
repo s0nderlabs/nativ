@@ -1,0 +1,11 @@
+{
+  "name": "nativ",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The native chain for AI — Initia MiniEVM appchain where agents are first-class citizens",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/s0nderlabs/nativ.git"
+  }
+}
