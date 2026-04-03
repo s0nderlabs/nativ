@@ -1,18 +1,32 @@
 import { resolvePrivateKey } from './src/env.js'
 import { connectMcp } from './src/server.js'
 import { startMessageListener, stopMessageListener } from './src/messaging.js'
+import { getBalance, fundAgentOnRollup } from './src/chain.js'
+import { state } from './src/state.js'
 
 async function main() {
   // 1. Resolve identity
   await resolvePrivateKey()
 
-  // 2. Connect MCP (stdio transport)
+  // 2. Bootstrap funding — if agent has zero balance, Gas Station sends 1 NATIV
+  try {
+    const bal = await getBalance(state.address)
+    if (parseFloat(bal) === 0) {
+      process.stderr.write('nativ: zero balance, requesting bootstrap funding...\n')
+      await fundAgentOnRollup(state.address)
+      process.stderr.write('nativ: funded with 1 NATIV\n')
+    }
+  } catch (err) {
+    process.stderr.write(`nativ: bootstrap funding skipped: ${err}\n`)
+  }
+
+  // 3. Connect MCP (stdio transport)
   const mcp = await connectMcp()
 
-  // 3. Start on-chain message listener
+  // 4. Start on-chain message listener
   await startMessageListener(mcp)
 
-  // 4. Shutdown wiring
+  // 5. Shutdown wiring
   let shuttingDown = false
   async function shutdown() {
     if (shuttingDown) return
@@ -25,12 +39,10 @@ async function main() {
   process.on('SIGTERM', shutdown)
   process.on('SIGINT', shutdown)
 
-  // stdin EOF detection (Claude Code closed)
   process.stdin.resume()
   process.stdin.on('end', shutdown)
   process.stdin.on('close', shutdown)
 
-  // Parent PID watchdog
   const ppid = process.ppid
   if (ppid && ppid > 1) {
     setInterval(() => {
@@ -38,7 +50,6 @@ async function main() {
     }, 5000)
   }
 
-  // Force exit safety net
   process.on('beforeExit', () => {
     setTimeout(() => process.exit(0), 3000).unref()
   })

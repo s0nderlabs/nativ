@@ -14,6 +14,8 @@ import {
   deployContract,
   getPublicClient,
 } from './chain.js'
+import { grantFeegrant } from './feegrant.js'
+import { registerInitName } from './l1.js'
 import {
   AGENT_REGISTRY_ADDRESS,
   AGENT_REGISTRY_ABI,
@@ -201,6 +203,9 @@ export function createServer() {
 // ─── Identity Handlers ───
 
 async function handleRegister(name: string, metadata: string) {
+  const steps: string[] = []
+
+  // 1. Register on rollup
   const pubKey = getPublicKeyHex()
   const hash = await writeContract(
     AGENT_REGISTRY_ADDRESS,
@@ -208,7 +213,37 @@ async function handleRegister(name: string, metadata: string) {
     'register',
     [name, metadata, `0x${pubKey}`],
   )
-  return { content: [{ type: 'text', text: `Registered as "${name}" on nativ. Tx: ${hash}\nYour address: ${state.address}\nYour .init name: ${name}.init` }] }
+  steps.push(`Registered on rollup: ${hash}`)
+
+  // 2. Grant feegrant on rollup
+  try {
+    grantFeegrant(state.initAddress)
+    steps.push('Feegrant granted — free gas enabled')
+  } catch (err: any) {
+    steps.push(`Feegrant failed: ${err.message?.slice(0, 60)}`)
+  }
+
+  // 3. Register .init name on L1 (best-effort)
+  let initNameRegistered = false
+  try {
+    const l1Hash = await registerInitName(name)
+    steps.push(`.init name registered on L1: ${name}.init (tx: ${l1Hash.slice(0, 12)}...)`)
+    initNameRegistered = true
+  } catch (err: any) {
+    steps.push(`.init registration skipped: ${err.message?.slice(0, 80)}`)
+  }
+
+  const summary = [
+    `Registered as "${name}" on nativ.`,
+    `Address: ${state.address}`,
+    `Init address: ${state.initAddress}`,
+    initNameRegistered ? `Name: ${name}.init (verified on L1)` : `Name: ${name}.init (rollup only — L1 registration pending)`,
+    '',
+    'Steps:',
+    ...steps.map(s => `  - ${s}`),
+  ].join('\n')
+
+  return { content: [{ type: 'text', text: summary }] }
 }
 
 async function handleWhoami() {

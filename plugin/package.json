@@ -5,6 +5,7 @@
     "start": "bun install --no-summary && bun run index.ts"
   },
   "dependencies": {
+    "@initia/initia.js": "^1.1.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "bech32": "^2.0.0",
     "eciesjs": "^0.4.14",

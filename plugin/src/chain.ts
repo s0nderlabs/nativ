@@ -10,9 +10,9 @@ import {
   type PublicClient,
   type WalletClient,
 } from 'viem'
-import { privateKeyToAccount } from 'viem/accounts'
+import { privateKeyToAccount, mnemonicToAccount } from 'viem/accounts'
 import { state } from './state.js'
-import { getRpcUrl, getWsUrl } from './env.js'
+import { getRpcUrl, getWsUrl, getGasStationMnemonic } from './env.js'
 
 let _publicClient: PublicClient | null = null
 let _walletClient: WalletClient | null = null
@@ -86,6 +86,25 @@ export async function sendNativ(to: string, amount: string): Promise<string> {
     to: to as `0x${string}`,
     value: parseEther(amount),
   })
+  return hash
+}
+
+export async function fundAgentOnRollup(agentAddress: string, amount: string = '1'): Promise<string> {
+  const chainId = await getChainId()
+  const chain = getNativChain(chainId)
+  const gasAccount = mnemonicToAccount(getGasStationMnemonic())
+  const gasWallet = createWalletClient({
+    account: gasAccount,
+    chain,
+    transport: http(getRpcUrl()),
+  })
+  const hash = await gasWallet.sendTransaction({
+    to: agentAddress as `0x${string}`,
+    value: parseEther(amount),
+  })
+  // Wait for confirmation so the account exists on-chain before proceeding
+  const client = getPublicClient()
+  await client.waitForTransactionReceipt({ hash })
   return hash
 }
 

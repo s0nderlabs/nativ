@@ -1,6 +1,7 @@
 import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 import { join } from 'path'
-import { mkdirSync, chmodSync } from 'fs'
+import { homedir } from 'os'
+import { mkdirSync, chmodSync, readFileSync } from 'fs'
 import { bech32 } from 'bech32'
 import { state } from './state.js'
 
@@ -66,4 +67,16 @@ export async function resolvePrivateKey(): Promise<void> {
   state.initAddress = evmToInit(account.address)
 
   process.stderr.write(`nativ: address ${state.address} (${state.initAddress})\n`)
+}
+
+export function getGasStationMnemonic(): string {
+  const configPath = join(homedir(), '.weave', 'config.json')
+  const config = JSON.parse(readFileSync(configPath, 'utf-8'))
+  return config.common.gas_station.mnemonic
+}
+
+export function getGasStationInitAddress(): string {
+  const configPath = join(homedir(), '.weave', 'config.json')
+  const config = JSON.parse(readFileSync(configPath, 'utf-8'))
+  return config.common.gas_station.initia_address
 }
