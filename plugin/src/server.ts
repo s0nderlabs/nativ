@@ -23,6 +23,10 @@ import {
   MESSAGE_RELAY_ABI,
 } from './contracts.js'
 import { sendMessageOnChain, resolveAgent } from './messaging.js'
+import { parseAbi, parseEther } from 'viem'
+import { mkdirSync, writeFileSync, readFileSync, rmSync } from 'fs'
+import { execSync } from 'child_process'
+import { join } from 'path'
 
 export function createServer() {
   const mcp = new Server(
@@ -354,13 +358,19 @@ async function handleSend(to: string, amount: string) {
 }
 
 async function handleRead(address: string, functionSignature: string, args: string[]) {
-  const abi = [{ type: 'function', name: functionSignature.split('(')[0], inputs: parseInputs(functionSignature), outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view' }]
-  const result = await readContract(address, abi, functionSignature.split('(')[0], args)
-  return { content: [{ type: 'text', text: `Result: ${JSON.stringify(result, (_, v) => typeof v === 'bigint' ? v.toString() : v)}` }] }
+  const abi = parseAbi([`function ${functionSignature} view returns (uint256)`])
+  try {
+    const result = await readContract(address, abi as any, functionSignature.split('(')[0], args)
+    return { content: [{ type: 'text', text: `Result: ${JSON.stringify(result, (_, v) => typeof v === 'bigint' ? v.toString() : v)}` }] }
+  } catch {
+    // Retry without return type hint — let the call figure it out
+    const minAbi = parseAbi([`function ${functionSignature} view`])
+    const result = await readContract(address, minAbi as any, functionSignature.split('(')[0], args)
+    return { content: [{ type: 'text', text: `Result: ${JSON.stringify(result, (_, v) => typeof v === 'bigint' ? v.toString() : v)}` }] }
+  }
 }
 
 async function handleCall(address: string, functionSignature: string, args: string[], value?: string) {
-  const { parseEther, parseAbi } = await import('viem')
   const abi = parseAbi([`function ${functionSignature}`])
   const fnName = functionSignature.split('(')[0]
   const v = value ? parseEther(value) : undefined
@@ -369,10 +379,6 @@ async function handleCall(address: string, functionSignature: string, args: stri
 }
 
 async function handleDeploy(source: string, contractName?: string, constructorArgs: string[] = []) {
-  const { mkdirSync, writeFileSync, readFileSync, rmSync } = require('fs')
-  const { execSync } = require('child_process')
-  const { join } = require('path')
-
   // Write source to temp dir
   const tmpDir = join('/tmp', `nativ-deploy-${Date.now()}`)
   mkdirSync(tmpDir, { recursive: true })
@@ -411,13 +417,6 @@ async function handleDeploy(source: string, contractName?: string, constructorAr
   }
 }
 
-// ─── Helpers ───
-
-function parseInputs(sig: string): { name: string; type: string }[] {
-  const match = sig.match(/\(([^)]*)\)/)
-  if (!match || !match[1]) return []
-  return match[1].split(',').map((t, i) => ({ name: `arg${i}`, type: t.trim() }))
-}
 
 // ─── Connect ───
 
