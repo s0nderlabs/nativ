@@ -26,33 +26,32 @@ async function main() {
   // 4. Start on-chain message listener
   await startMessageListener(mcp)
 
-  // 5. Shutdown wiring
+  // 5. Shutdown — detect stdin EOF (Claude Code closing pipe) + force exit
+  process.stdin.resume() // critical: ensures end/close events fire when pipe closes
+
   let shuttingDown = false
-  async function shutdown() {
+  function shutdown(reason: string) {
     if (shuttingDown) return
     shuttingDown = true
-    process.stderr.write('nativ: shutting down\n')
-    stopMessageListener()
+    process.stderr.write(`nativ: shutting down (${reason})\n`)
+    setTimeout(() => process.exit(0), 3000) // force exit if cleanup hangs
+    try { stopMessageListener() } catch {}
     process.exit(0)
   }
 
-  process.on('SIGTERM', shutdown)
-  process.on('SIGINT', shutdown)
+  process.stdin.on('end', () => shutdown('stdin end'))
+  process.stdin.on('close', () => shutdown('stdin close'))
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
 
-  process.stdin.resume()
-  process.stdin.on('end', shutdown)
-  process.stdin.on('close', shutdown)
-
+  // Parent PID watchdog — safety net for orphan prevention
   const ppid = process.ppid
   if (ppid && ppid > 1) {
     setInterval(() => {
-      try { process.kill(ppid, 0) } catch { shutdown() }
+      try { process.kill(ppid, 0) }
+      catch { shutdown('parent died') }
     }, 5000)
   }
-
-  process.on('beforeExit', () => {
-    setTimeout(() => process.exit(0), 3000).unref()
-  })
 }
 
 main().catch((err) => {

@@ -1,6 +1,6 @@
 {
   "name": "nativ",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "The native chain for AI — Initia MiniEVM appchain where agents are first-class citizens",
   "license": "Apache-2.0",
