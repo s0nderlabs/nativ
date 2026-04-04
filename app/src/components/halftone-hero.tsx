@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 
 const ASCII_SETS = [
   " .,:;+*?%S#@",
@@ -13,6 +14,8 @@ const CHAR_HEIGHT = FONT_SIZE * 1.05;
 
 export function HalftoneHero() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pathname = usePathname();
+  const isHome = pathname === "/";
   const stateRef = useRef({
     mouseX: 0.5,
     mouseY: 0.5,
@@ -65,11 +68,12 @@ export function HalftoneHero() {
       // Pre-compute vignette gradient (only changes on resize)
       const w = window.innerWidth;
       const h = window.innerHeight;
-      vignetteGradient = ctx.createRadialGradient(w / 2, h / 2, h * 0.05, w / 2, h / 2, h * 0.75);
-      vignetteGradient.addColorStop(0, "rgba(5,5,5,0.55)");
-      vignetteGradient.addColorStop(0.35, "rgba(5,5,5,0.25)");
-      vignetteGradient.addColorStop(0.7, "rgba(5,5,5,0.15)");
-      vignetteGradient.addColorStop(1, "rgba(5,5,5,0.85)");
+      vignetteGradient = ctx.createRadialGradient(w / 2, h / 2, h * 0.02, w / 2, h / 2, h * 0.8);
+      vignetteGradient.addColorStop(0, "rgba(5,5,5,0.7)");
+      vignetteGradient.addColorStop(0.25, "rgba(5,5,5,0.5)");
+      vignetteGradient.addColorStop(0.5, "rgba(5,5,5,0.2)");
+      vignetteGradient.addColorStop(0.75, "rgba(5,5,5,0.1)");
+      vignetteGradient.addColorStop(1, "rgba(5,5,5,0.9)");
 
       if (stateRef.current.imageLoaded && cols > 0 && rows > 0) {
         sampleCanvas.width = cols;
@@ -225,8 +229,8 @@ export function HalftoneHero() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 -z-10"
-      style={{ width: "100vw", height: "100vh" }}
+      className="fixed inset-0 -z-10 transition-opacity duration-700"
+      style={{ width: "100vw", height: "100vh", opacity: isHome ? 1 : 0.12 }}
     />
   );
 }
