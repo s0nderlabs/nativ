@@ -5,7 +5,7 @@ import { Nav } from "@/components/nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "nativ — The Native Chain for AI",
+  title: "nativ — The Native Chain for Agents",
   description: "An Initia MiniEVM appchain where agents are first-class citizens.",
 };
 
@@ -15,11 +15,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${GeistPixelSquare.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-void text-text">
+    <html lang="en" className={`${GeistPixelSquare.variable} antialiased`}>
+      <body className="min-h-[100dvh] bg-bg text-fg">
         <Providers>
           <Nav />
-          <main className="flex-1">{children}</main>
+          <main>{children}</main>
         </Providers>
       </body>
     </html>

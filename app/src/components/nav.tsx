@@ -5,14 +5,29 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useInterwovenKit } from "@initia/interwovenkit-react";
 import { truncate } from "@initia/utils";
-
 const links = [
-  { href: "/", label: "home" },
-  { href: "/explorer", label: "explorer" },
-  { href: "/live", label: "live" },
-  { href: "/chat", label: "chat" },
-  { href: "/marketplace", label: "market" },
+  { href: "/explorer", label: "Explorer" },
+  { href: "/live", label: "Live" },
+  { href: "/chat", label: "Chat" },
+  { href: "/marketplace", label: "Market" },
 ];
+
+function navLink(link: { href: string; label: string }, pathname: string) {
+  return (
+    <Link
+      key={link.href}
+      href={link.href}
+      className={`relative text-[11px] tracking-wide px-3 py-1.5 transition-[color] duration-200 ${
+        pathname === link.href ? "text-fg" : "text-muted hover:text-fg"
+      }`}
+    >
+      {link.label}
+      {pathname === link.href && (
+        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-px bg-fg" />
+      )}
+    </Link>
+  );
+}
 
 function WalletButton() {
   const [mounted, setMounted] = useState(false);
@@ -20,13 +35,13 @@ function WalletButton() {
 
   const kit = useInterwovenKit();
 
-  if (!mounted) return <span className="text-xs text-text-dim">loading...</span>;
+  if (!mounted) return null;
 
   if (kit.isConnected) {
     return (
       <button
         onClick={kit.openWallet}
-        className="text-xs px-4 py-2 rounded-full border border-border text-text-dim hover:border-accent/40 hover:text-accent transition-colors duration-200"
+        className="text-[11px] px-3 py-1.5 border border-border text-muted hover:border-border-strong hover:text-fg transition-[border-color,color] duration-200"
       >
         {truncate(kit.username ?? kit.address ?? "")}
       </button>
@@ -36,43 +51,54 @@ function WalletButton() {
   return (
     <button
       onClick={kit.openConnect}
-      className="text-xs px-4 py-2 rounded-full bg-accent text-void font-medium hover:bg-accent/80 transition-colors duration-200"
+      className="text-[11px] px-3 py-1.5 bg-fg text-bg font-medium hover:opacity-80 transition-opacity duration-200"
     >
-      connect
+      Connect
     </button>
   );
 }
 
 export function Nav() {
   const pathname = usePathname();
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <nav className="sticky top-0 z-50 flex items-center justify-between px-6 py-4 border-b border-border bg-void/80 backdrop-blur-xl">
-      <Link
-        href="/"
-        className="text-accent font-bold text-lg tracking-tight"
-        style={{ fontFamily: "var(--font-pixel)" }}
+    <>
+      {/* Navigation bar — centered */}
+      <nav
+        className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-1.5 py-1.5 border transition-[background-color,border-color,backdrop-filter] duration-500"
+        style={{
+          backgroundColor: scrolled
+            ? `color-mix(in srgb, var(--bg) 75%, transparent)`
+            : `color-mix(in srgb, var(--bg) 40%, transparent)`,
+          borderColor: scrolled ? "var(--border-strong)" : "var(--border)",
+          backdropFilter: scrolled ? "blur(20px)" : "blur(12px)",
+          WebkitBackdropFilter: scrolled ? "blur(20px)" : "blur(12px)",
+        }}
       >
-        nativ
-      </Link>
+        {links.slice(0, 2).map((link) => navLink(link, pathname))}
 
-      <div className="flex items-center gap-6">
-        {links.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={`text-xs tracking-wider transition-colors duration-200 ${
-              pathname === link.href
-                ? "text-accent"
-                : "text-text-dim hover:text-text"
-            }`}
-          >
-            {link.label}
-          </Link>
-        ))}
+        <Link
+          href="/"
+          className="text-fg font-bold text-sm tracking-tight px-4 py-1 border-x border-border"
+          style={{ fontFamily: "var(--font-pixel)" }}
+        >
+          nativ
+        </Link>
+
+        {links.slice(2).map((link) => navLink(link, pathname))}
+      </nav>
+
+      {/* Top-right — wallet */}
+      <div className="fixed top-4 right-6 z-50">
+        <WalletButton />
       </div>
-
-      <WalletButton />
-    </nav>
+    </>
   );
 }

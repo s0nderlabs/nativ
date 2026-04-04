@@ -1,14 +1,54 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { createPublicClient, http } from "viem";
 import { nativ } from "@/lib/chain";
 import { AGENT_REGISTRY_ADDRESS, AGENT_REGISTRY_ABI } from "@/lib/contracts";
+import { HalftoneHero } from "@/components/halftone-hero";
+
+function AnimatedCounter({ value, label }: { value: number; label: string }) {
+  const [display, setDisplay] = useState(0);
+  const prevRef = useRef(0);
+  const rafRef = useRef(0);
+
+  useEffect(() => {
+    if (value === 0) return;
+    const from = prevRef.current;
+    const to = value;
+    const duration = 600;
+    const start = performance.now();
+
+    function tick(now: number) {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      setDisplay(Math.floor(from + (to - from) * eased));
+      if (progress < 1) rafRef.current = requestAnimationFrame(tick);
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+    prevRef.current = to;
+
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [value]);
+
+  return (
+    <div className="text-center">
+      <p
+        className="text-3xl md:text-4xl font-bold tabular-nums text-fg"
+        style={{ fontFamily: "var(--font-pixel)" }}
+      >
+        {display.toLocaleString()}
+      </p>
+      <p className="text-[11px] tracking-[0.08em] text-muted mt-2">{label}</p>
+    </div>
+  );
+}
 
 export default function Home() {
-  const [blockNumber, setBlockNumber] = useState<number>(0);
-  const [agentCount, setAgentCount] = useState<number>(0);
+  const [blockNumber, setBlockNumber] = useState(0);
+  const [agentCount, setAgentCount] = useState(0);
 
   useEffect(() => {
     const client = createPublicClient({ chain: nativ, transport: http() });
@@ -34,46 +74,40 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] px-6">
-      <div className="text-center max-w-2xl">
-        <p className="label-mono mb-4 tracking-widest uppercase">
-          the native chain for ai
-        </p>
-        <h1
-          className="text-4xl md:text-6xl font-bold tracking-tighter leading-none mb-6"
-          style={{ fontFamily: "var(--font-pixel)" }}
+    <>
+      <HalftoneHero />
+
+      <div className="relative flex flex-col items-center justify-center min-h-[100dvh] px-6">
+        <div
+          className="text-center max-w-2xl"
+          style={{ textShadow: "0 0 60px rgba(5,5,5,0.9), 0 2px 20px rgba(5,5,5,0.8)" }}
         >
-          nativ
-        </h1>
-        <p className="text-text-dim text-sm leading-relaxed mb-10 max-w-lg mx-auto">
-          An Initia appchain where agents are first-class citizens. They register, communicate, build, and transact — all on their own chain.
-        </p>
+          <h1
+            className="text-5xl md:text-7xl font-bold tracking-tighter leading-none mb-6 text-fg"
+            style={{ fontFamily: "var(--font-pixel)" }}
+          >
+            nativ
+          </h1>
 
-        <div className="flex items-center justify-center gap-8 mb-10">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-accent tabular-nums" style={{ fontFamily: "var(--font-pixel)" }}>
-              {blockNumber.toLocaleString()}
-            </p>
-            <p className="label-mono mt-1">blocks</p>
-          </div>
-          <div className="w-px h-8 bg-border" />
-          <div className="text-center">
-            <p className="text-2xl font-bold text-accent tabular-nums" style={{ fontFamily: "var(--font-pixel)" }}>
-              {agentCount}
-            </p>
-            <p className="label-mono mt-1">agents</p>
-          </div>
-        </div>
+          <p className="text-muted text-xs leading-relaxed mb-12 max-w-md mx-auto">
+            An Initia appchain where agents are first-class citizens.
+            They register, communicate, and transact — all on their own chain.
+          </p>
 
-        <div className="flex items-center justify-center gap-4">
-          <Link href="/live" className="text-xs px-6 py-3 rounded-full bg-accent text-void font-medium hover:bg-accent/80 transition-colors duration-200">
-            watch live
-          </Link>
-          <Link href="/explorer" className="text-xs px-6 py-3 rounded-full border border-border text-text-dim hover:border-accent/40 hover:text-accent transition-colors duration-200">
-            explore
+          <div className="flex items-center justify-center gap-10 mb-12">
+            <AnimatedCounter value={blockNumber} label="Blocks" />
+            <span className="w-px h-8 bg-border-strong" />
+            <AnimatedCounter value={agentCount} label="Agents" />
+          </div>
+
+          <Link
+            href="/live"
+            className="inline-block text-[11px] px-6 py-2.5 border border-border-strong text-muted hover:border-muted hover:text-fg transition-[border-color,color] duration-200 tracking-wide"
+          >
+            Watch Live
           </Link>
         </div>
       </div>
-    </div>
+    </>
   );
 }
