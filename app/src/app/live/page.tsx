@@ -146,7 +146,7 @@ export default function LivePage() {
         const historicalEvents: FeedEvent[] = [];
 
         // Fetch all event types in parallel
-        const [regLogs, deregLogs, updateLogs, msgLogs] = await Promise.all([
+        const [regLogs, deregLogs, updateLogs, msgLogs, deployLogs] = await Promise.all([
           httpClient.getLogs({
             address: AGENT_REGISTRY_ADDRESS,
             event: parseAbiItem("event AgentRegistered(address indexed agent, string name, string metadata)"),
@@ -171,11 +171,18 @@ export default function LivePage() {
             fromBlock,
             toBlock: currentBlock,
           }).catch(() => []),
+          // Catch deploys via Transfer from 0x0 (every ERC-20 constructor emits this)
+          httpClient.getLogs({
+            event: parseAbiItem("event Transfer(address indexed from, address indexed to, uint256 value)"),
+            args: { from: "0x0000000000000000000000000000000000000000" as `0x${string}` },
+            fromBlock,
+            toBlock: currentBlock,
+          }).catch(() => []),
         ]);
 
         // Collect unique block numbers for timestamp lookup
         const blockNums = new Set<bigint>();
-        for (const log of [...regLogs, ...deregLogs, ...updateLogs, ...msgLogs]) {
+        for (const log of [...regLogs, ...deregLogs, ...updateLogs, ...msgLogs, ...deployLogs]) {
           if (log.blockNumber) blockNums.add(log.blockNumber);
         }
 
@@ -245,6 +252,25 @@ export default function LivePage() {
             text: `${from} → ${to}${preview || " [encrypted]"}`,
             from: (log as any).args.from,
             to: (log as any).args.to,
+            timestamp: getTimestamp(log.blockNumber),
+          });
+        }
+
+        // Deduplicate deploy logs by contract address (the emitting address)
+        const seenContracts = new Set<string>();
+        for (const log of deployLogs) {
+          const contractAddr = (log as any).address?.toLowerCase();
+          if (seenContracts.has(contractAddr)) continue;
+          seenContracts.add(contractAddr);
+
+          // The 'to' in Transfer(0x0 → deployer) is the deployer
+          const deployer = (log as any).args?.to;
+          const from = deployer ? await resolveName(deployer, httpClient) : "unknown";
+          historicalEvents.push({
+            id: `hist-deploy-${log.blockNumber}-${log.logIndex}`,
+            type: "deploy",
+            text: `${from} deployed contract at ${contractAddr?.slice(0, 10)}...`,
+            from: deployer,
             timestamp: getTimestamp(log.blockNumber),
           });
         }
@@ -446,6 +472,8 @@ export default function LivePage() {
 
             let txCount = 0;
             try {
+              // Delay slightly — MiniEVM WS announces blocks before HTTP indexes them
+              await new Promise((r) => setTimeout(r, 800));
               const fullBlock = await httpClient.getBlock({
                 blockNumber: BigInt(num),
                 includeTransactions: true,
@@ -466,13 +494,22 @@ export default function LivePage() {
                 if (!tx.to) {
                   const from = await resolveName(tx.from, httpClient);
                   try {
+                    // Small delay — MiniEVM may need a moment to index the receipt
+                    await new Promise((r) => setTimeout(r, 500));
                     const receipt = await httpClient.getTransactionReceipt({ hash: tx.hash });
                     addEvent({
                       type: "deploy",
                       text: `${from} deployed contract at ${receipt.contractAddress?.slice(0, 10)}...`,
                       from: tx.from,
                     });
-                  } catch {}
+                  } catch (err) {
+                    // Still show deploy even if receipt fetch fails
+                    addEvent({
+                      type: "deploy",
+                      text: `${from} deployed a contract`,
+                      from: tx.from,
+                    });
+                  }
                 } else if (tx.value && tx.value > BigInt(0)) {
                   const from = await resolveName(tx.from, httpClient);
                   const to = await resolveName(tx.to, httpClient);

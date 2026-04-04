@@ -275,24 +275,27 @@ export default function ChatPage() {
         ],
       });
 
-      // Use Cosmos auto-sign path if enabled, otherwise EVM direct
+      const messages = [
+        {
+          typeUrl: "/minievm.evm.v1.MsgCall",
+          value: {
+            sender: kit.initiaAddress,
+            contractAddr: MESSAGE_RELAY_ADDRESS,
+            input: calldata,
+            value: "0",
+            accessList: [],
+            authList: [],
+          },
+        },
+      ];
+
+      // submitTxSync signs directly with AutoSign wallet (no popup)
+      // requestTxSync shows confirmation drawer (fallback)
       if (kit.autoSign?.isEnabledByChain?.[CHAIN_ID]) {
-        await kit.requestTxSync({
-          chainId: CHAIN_ID,
-          messages: [
-            {
-              typeUrl: "/minievm.evm.v1.MsgCall",
-              value: {
-                sender: kit.initiaAddress,
-                contractAddr: MESSAGE_RELAY_ADDRESS,
-                input: calldata,
-                value: "0",
-                accessList: [],
-                authList: [],
-              },
-            },
-          ],
-        });
+        const gasEstimate = await kit.estimateGas({ messages, chainId: CHAIN_ID });
+        const gas = Math.ceil(gasEstimate * 1.4);
+        const fee = { amount: [{ denom: "unativ", amount: String(Math.ceil(gas * 0.15)) }], gas: String(gas) };
+        await kit.submitTxSync({ messages, chainId: CHAIN_ID, fee });
       } else {
         await sendTransactionAsync({
           to: MESSAGE_RELAY_ADDRESS,
