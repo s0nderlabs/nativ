@@ -12,15 +12,15 @@ export function getStateDir(): string {
 }
 
 export function getRpcUrl(): string {
-  return process.env.NATIV_RPC_URL ?? 'http://localhost:8545'
+  return process.env.NATIV_RPC_URL ?? 'https://nativ-rpc.s0nderlabs.xyz'
 }
 
 export function getWsUrl(): string {
-  return process.env.NATIV_WS_URL ?? 'ws://localhost:8546'
+  return process.env.NATIV_WS_URL ?? 'wss://nativ-ws.s0nderlabs.xyz'
 }
 
 export function getRestUrl(): string {
-  return process.env.NATIV_REST_URL ?? 'http://localhost:1317'
+  return process.env.NATIV_REST_URL ?? 'https://nativ-rpc.s0nderlabs.xyz'
 }
 
 export function getL1RestUrl(): string {

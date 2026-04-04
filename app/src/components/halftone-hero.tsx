@@ -52,9 +52,11 @@ export function HalftoneHero() {
     let cellB: Uint8Array | null = null;
     let vignetteGradient: CanvasGradient | null = null;
     const font = `${FONT_SIZE}px "Ioskeley Mono", "JetBrains Mono", "Fira Code", monospace`;
+    let rendered = false;
 
     function resize() {
       if (stateRef.current.destroyed || !canvas || !ctx) return;
+      rendered = false; // Force redraw after canvas is cleared
 
       const dpr = Math.min(window.devicePixelRatio, 2);
       canvas.width = window.innerWidth * dpr;
@@ -112,8 +114,11 @@ export function HalftoneHero() {
     window.addEventListener("resize", resize);
     window.addEventListener("mousemove", handleMouseMove);
 
+    // Force redraw when tab becomes visible again
+    function onVisibility() { if (!document.hidden) rendered = false; }
+    document.addEventListener("visibilitychange", onVisibility);
+
     const startTime = performance.now();
-    let rendered = false;
 
     function render() {
       if (stateRef.current.destroyed) return;
@@ -235,6 +240,7 @@ export function HalftoneHero() {
       cancelAnimationFrame(stateRef.current.animId);
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [handleMouseMove]);
 

@@ -74,6 +74,10 @@ export async function getWsClient(): Promise<PublicClient> {
   return _wsClient
 }
 
+export function resetWsClient(): void {
+  _wsClient = null
+}
+
 export async function getBalance(address: string): Promise<string> {
   const client = getPublicClient()
   const balance = await client.getBalance({ address: address as `0x${string}` })

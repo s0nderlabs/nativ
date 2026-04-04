@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { createPublicClient, http, webSocket, formatEther } from "viem";
+import { createPublicClient, http, webSocket, formatEther, parseAbiItem } from "viem";
 import { motion, AnimatePresence } from "framer-motion";
 import { nativ } from "@/lib/chain";
 import {
@@ -15,11 +15,17 @@ import {
 
 type FeedEvent = {
   id: string;
-  type: "registration" | "message" | "task" | "transfer" | "deploy";
+  type: "registration" | "deregistration" | "update" | "message" | "task" | "transfer" | "deploy";
   text: string;
   timestamp: Date;
   from?: string;
   to?: string;
+};
+
+type BlockInfo = {
+  number: number;
+  txCount: number;
+  timestamp: number;
 };
 
 const nameCache = new Map<string, string>();
@@ -47,35 +53,230 @@ async function resolveName(address: string, client: any): Promise<string> {
 
 const typeConfig: Record<string, { label: string; icon: string }> = {
   registration: { label: "REG", icon: "+" },
+  deregistration: { label: "DEREG", icon: "−" },
+  update: { label: "UPDATE", icon: "~" },
   message: { label: "MSG", icon: "→" },
   task: { label: "TASK", icon: "◇" },
   transfer: { label: "SEND", icon: "↗" },
   deploy: { label: "DEPLOY", icon: "■" },
 };
 
-function EventCount({ count, label }: { count: number; label: string }) {
+function BlockStrip({ blocks }: { blocks: BlockInfo[] }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }
+  }, [blocks.length]);
+
   return (
-    <div className="text-right">
-      <p className="text-sm font-bold tabular-nums text-fg">{count}</p>
-      <p className="label-mono">{label}</p>
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-3">
+        <p className="label-mono">Block Production</p>
+        <p className="label-mono tabular-nums">
+          {blocks.length > 0 ? `#${blocks[blocks.length - 1].number.toLocaleString()}` : "—"}
+        </p>
+      </div>
+      <div
+        ref={scrollRef}
+        className="overflow-hidden"
+        style={{
+          maskImage: "linear-gradient(to right, transparent 0%, black 8%, black 100%)",
+          WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 8%, black 100%)",
+        }}
+      >
+        <div className="flex items-end gap-px w-max">
+          {blocks.map((block) => {
+            const hasTx = block.txCount > 0;
+            const height = hasTx ? 24 + Math.min(block.txCount * 6, 24) : 16;
+            return (
+              <div
+                key={block.number}
+                className="shrink-0 group relative"
+                style={{ width: 6, height }}
+              >
+                <div
+                  className={`w-full h-full ${hasTx ? "bg-fg/40" : "bg-fg/10"} group-hover:bg-fg/60 transition-[background-color] duration-150`}
+                />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                  <div className="bg-surface-2 border border-border px-2 py-1 whitespace-nowrap">
+                    <p className="text-[10px] text-fg tabular-nums">#{block.number.toLocaleString()}</p>
+                    <p className="text-[10px] text-muted">{block.txCount} tx{block.txCount !== 1 ? "s" : ""}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
 
 export default function LivePage() {
   const [events, setEvents] = useState<FeedEvent[]>([]);
+  const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [connected, setConnected] = useState(false);
-  const [blockNumber, setBlockNumber] = useState(0);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   useEffect(() => {
     const httpClient = createPublicClient({ chain: nativ, transport: http() });
     let wsClient: any;
     const unwatchers: (() => void)[] = [];
 
-    // Fetch initial block number
-    httpClient.getBlockNumber().then((b) => setBlockNumber(Number(b))).catch(() => {});
+    function addEvent(partial: Omit<FeedEvent, "id" | "timestamp">) {
+      const event: FeedEvent = {
+        ...partial,
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        timestamp: new Date(),
+      };
+      setEvents((prev) => [event, ...prev].slice(0, 300));
+    }
+
+    function addBlock(info: BlockInfo) {
+      setBlocks((prev) => {
+        if (prev.length > 0 && prev[prev.length - 1].number >= info.number) return prev;
+        return [...prev, info].slice(-200);
+      });
+    }
+
+    // Seed with historical events
+    async function loadHistory() {
+      try {
+        const currentBlock = await httpClient.getBlockNumber();
+        const fromBlock = BigInt(0);
+
+        const historicalEvents: FeedEvent[] = [];
+
+        // Fetch all event types in parallel
+        const [regLogs, deregLogs, updateLogs, msgLogs] = await Promise.all([
+          httpClient.getLogs({
+            address: AGENT_REGISTRY_ADDRESS,
+            event: parseAbiItem("event AgentRegistered(address indexed agent, string name, string metadata)"),
+            fromBlock,
+            toBlock: currentBlock,
+          }).catch(() => []),
+          httpClient.getLogs({
+            address: AGENT_REGISTRY_ADDRESS,
+            event: parseAbiItem("event AgentDeregistered(address indexed agent, string name)"),
+            fromBlock,
+            toBlock: currentBlock,
+          }).catch(() => []),
+          httpClient.getLogs({
+            address: AGENT_REGISTRY_ADDRESS,
+            event: parseAbiItem("event AgentUpdated(address indexed agent, string metadata)"),
+            fromBlock,
+            toBlock: currentBlock,
+          }).catch(() => []),
+          httpClient.getLogs({
+            address: MESSAGE_RELAY_ADDRESS,
+            event: parseAbiItem("event Message(address indexed from, address indexed to, bytes payload, uint256 timestamp)"),
+            fromBlock,
+            toBlock: currentBlock,
+          }).catch(() => []),
+        ]);
+
+        // Collect unique block numbers for timestamp lookup
+        const blockNums = new Set<bigint>();
+        for (const log of [...regLogs, ...deregLogs, ...updateLogs, ...msgLogs]) {
+          if (log.blockNumber) blockNums.add(log.blockNumber);
+        }
+
+        // Fetch block timestamps in parallel (batched)
+        const blockTimestamps = new Map<bigint, number>();
+        const blockFetches = [...blockNums].map(async (num) => {
+          try {
+            const b = await httpClient.getBlock({ blockNumber: num });
+            blockTimestamps.set(num, Number(b.timestamp) * 1000);
+          } catch {}
+        });
+        await Promise.all(blockFetches);
+
+        function getTimestamp(blockNum: bigint | null): Date {
+          if (blockNum && blockTimestamps.has(blockNum)) return new Date(blockTimestamps.get(blockNum)!);
+          return new Date();
+        }
+
+        for (const log of regLogs) {
+          const name = (log as any).args.name ?? "unknown";
+          const metadata = (log as any).args.metadata ?? "";
+          historicalEvents.push({
+            id: `hist-reg-${log.blockNumber}-${log.logIndex}`,
+            type: "registration",
+            text: `${name}.init registered on nativ${metadata ? ` — "${metadata}"` : ""}`,
+            from: (log as any).args.agent,
+            timestamp: getTimestamp(log.blockNumber),
+          });
+        }
+
+        for (const log of deregLogs) {
+          const name = (log as any).args.name ?? "unknown";
+          historicalEvents.push({
+            id: `hist-dereg-${log.blockNumber}-${log.logIndex}-${Math.random().toString(36).slice(2, 6)}`,
+            type: "deregistration",
+            text: `${name}.init deregistered from nativ`,
+            from: (log as any).args.agent,
+            timestamp: getTimestamp(log.blockNumber),
+          });
+        }
+
+        for (const log of updateLogs) {
+          const from = await resolveName((log as any).args.agent, httpClient);
+          const metadata = (log as any).args.metadata ?? "";
+          historicalEvents.push({
+            id: `hist-upd-${log.blockNumber}-${log.logIndex}`,
+            type: "update",
+            text: `${from} updated metadata${metadata ? ` — "${metadata.slice(0, 60)}"` : ""}`,
+            from: (log as any).args.agent,
+            timestamp: getTimestamp(log.blockNumber),
+          });
+        }
+
+        for (const log of msgLogs) {
+          const from = await resolveName((log as any).args.from, httpClient);
+          const to = await resolveName((log as any).args.to, httpClient);
+          let preview = "";
+          try {
+            const raw = Buffer.from(((log as any).args.payload as string).slice(2), "hex").toString("utf-8");
+            if (raw.length < 100 && !raw.includes("\x00")) {
+              preview = ` — "${raw.slice(0, 60)}"`;
+            }
+          } catch {}
+          historicalEvents.push({
+            id: `hist-msg-${log.blockNumber}-${log.logIndex}`,
+            type: "message",
+            text: `${from} → ${to}${preview || " [encrypted]"}`,
+            from: (log as any).args.from,
+            to: (log as any).args.to,
+            timestamp: getTimestamp(log.blockNumber),
+          });
+        }
+
+        // Seed block strip — just use the latest block number, fill with placeholders
+        const seedCount = 30;
+        const seedBlocks: BlockInfo[] = [];
+        for (let i = 0; i < seedCount; i++) {
+          seedBlocks.push({
+            number: Number(currentBlock) - seedCount + i + 1,
+            txCount: 0,
+            timestamp: Math.floor(Date.now() / 1000) - (seedCount - i),
+          });
+        }
+        setBlocks(seedBlocks);
+
+        // Reverse so newest events are first (getLogs returns oldest-first)
+        historicalEvents.reverse();
+        if (historicalEvents.length > 0) {
+          setEvents(historicalEvents.slice(0, 50));
+        }
+        setHistoryLoaded(true);
+      } catch {}
+    }
 
     async function start() {
+      await loadHistory();
+
       try {
         wsClient = createPublicClient({
           chain: nativ,
@@ -99,6 +300,43 @@ export default function LivePage() {
               addEvent({
                 type: "registration",
                 text: `${name}.init registered on nativ${metadata ? ` — "${metadata}"` : ""}`,
+                from: log.args.agent,
+              });
+            }
+          },
+        })
+      );
+
+      unwatchers.push(
+        wsClient.watchContractEvent({
+          address: AGENT_REGISTRY_ADDRESS,
+          abi: AGENT_REGISTRY_ABI,
+          eventName: "AgentDeregistered",
+          onLogs: async (logs: any[]) => {
+            for (const log of logs) {
+              const name = log.args.name ?? "unknown";
+              addEvent({
+                type: "deregistration",
+                text: `${name}.init deregistered from nativ`,
+                from: log.args.agent,
+              });
+            }
+          },
+        })
+      );
+
+      unwatchers.push(
+        wsClient.watchContractEvent({
+          address: AGENT_REGISTRY_ADDRESS,
+          abi: AGENT_REGISTRY_ABI,
+          eventName: "AgentUpdated",
+          onLogs: async (logs: any[]) => {
+            for (const log of logs) {
+              const from = await resolveName(log.args.agent, httpClient);
+              const metadata = log.args.metadata ?? "";
+              addEvent({
+                type: "update",
+                text: `${from} updated metadata${metadata ? ` — "${metadata.slice(0, 60)}"` : ""}`,
                 from: log.args.agent,
               });
             }
@@ -174,44 +412,53 @@ export default function LivePage() {
       unwatchers.push(
         wsClient.watchBlocks({
           onBlock: async (block: any) => {
-            setBlockNumber(Number(block.number));
+            const num = Number(block?.number ?? 0);
+            if (num === 0) return;
+
+            let txCount = 0;
             try {
               const fullBlock = await httpClient.getBlock({
-                blockNumber: block.number,
+                blockNumber: BigInt(num),
                 includeTransactions: true,
               });
+              txCount = (fullBlock.transactions as any[]).length;
+
+              const knownContracts = [
+                AGENT_REGISTRY_ADDRESS.toLowerCase(),
+                MESSAGE_RELAY_ADDRESS.toLowerCase(),
+                TASK_ESCROW_ADDRESS.toLowerCase(),
+              ];
+
               for (const tx of fullBlock.transactions as any[]) {
                 if (typeof tx === "string") continue;
+                // Skip txs to known contracts — those are already caught by event watchers
+                if (tx.to && knownContracts.includes(tx.to.toLowerCase())) continue;
+
                 if (!tx.to) {
                   const from = await resolveName(tx.from, httpClient);
-                  const receipt = await httpClient.getTransactionReceipt({
-                    hash: tx.hash,
-                  });
-                  addEvent({
-                    type: "deploy",
-                    text: `${from} deployed contract at ${receipt.contractAddress?.slice(0, 10)}...`,
-                    from: tx.from,
-                  });
-                } else if (tx.value && tx.value > BigInt(0)) {
-                  const knownContracts = [
-                    AGENT_REGISTRY_ADDRESS.toLowerCase(),
-                    MESSAGE_RELAY_ADDRESS.toLowerCase(),
-                    TASK_ESCROW_ADDRESS.toLowerCase(),
-                  ];
-                  if (!knownContracts.includes(tx.to.toLowerCase())) {
-                    const from = await resolveName(tx.from, httpClient);
-                    const to = await resolveName(tx.to, httpClient);
-                    const amount = formatEther(tx.value);
+                  try {
+                    const receipt = await httpClient.getTransactionReceipt({ hash: tx.hash });
                     addEvent({
-                      type: "transfer",
-                      text: `${from} sent ${amount} NATIV to ${to}`,
+                      type: "deploy",
+                      text: `${from} deployed contract at ${receipt.contractAddress?.slice(0, 10)}...`,
                       from: tx.from,
-                      to: tx.to,
                     });
-                  }
+                  } catch {}
+                } else if (tx.value && tx.value > BigInt(0)) {
+                  const from = await resolveName(tx.from, httpClient);
+                  const to = await resolveName(tx.to, httpClient);
+                  const amount = formatEther(tx.value);
+                  addEvent({
+                    type: "transfer",
+                    text: `${from} sent ${amount} NATIV to ${to}`,
+                    from: tx.from,
+                    to: tx.to,
+                  });
                 }
               }
             } catch {}
+
+            addBlock({ number: num, txCount, timestamp: Math.floor(Date.now() / 1000) });
           },
         })
       );
@@ -219,28 +466,12 @@ export default function LivePage() {
 
     start();
 
-    function addEvent(partial: Omit<FeedEvent, "id" | "timestamp">) {
-      const event: FeedEvent = {
-        ...partial,
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        timestamp: new Date(),
-      };
-      setEvents((prev) => [event, ...prev].slice(0, 200));
-    }
-
     return () => {
       unwatchers.forEach((fn) => fn());
     };
   }, []);
 
-  // Event type counts
-  const counts = events.reduce(
-    (acc, e) => {
-      acc[e.type] = (acc[e.type] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
+  const latestBlock = blocks.length > 0 ? blocks[blocks.length - 1].number : 0;
 
   return (
     <div className="max-w-5xl mx-auto px-6 pt-24 pb-10">
@@ -257,32 +488,36 @@ export default function LivePage() {
         </div>
 
         <div className="flex items-center gap-6">
-          {/* Connection status */}
           <div className="flex items-center gap-2">
             <span
               className={`w-1.5 h-1.5 ${connected ? "bg-fg animate-pulse" : "bg-muted"}`}
             />
             <span className="label-mono">
-              {connected ? "Connected" : "Disconnected"}
+              {connected ? "Connected" : "Connecting"}
             </span>
           </div>
 
           <span className="w-px h-6 bg-border" />
 
-          <EventCount count={events.length} label="Events" />
+          <div className="text-right">
+            <p className="text-sm font-bold tabular-nums text-fg">{events.length}</p>
+            <p className="label-mono">Events</p>
+          </div>
           <span className="w-px h-6 bg-border" />
           <div className="text-right">
             <p className="text-sm font-bold tabular-nums text-fg">
-              {blockNumber.toLocaleString()}
+              {latestBlock.toLocaleString()}
             </p>
             <p className="label-mono">Block</p>
           </div>
         </div>
       </div>
 
-      {/* Feed */}
-      <div>
-        {/* Column headers */}
+      {/* Block strip — visual heartbeat */}
+      <BlockStrip blocks={blocks} />
+
+      {/* Event feed */}
+      <div className="flex flex-col" style={{ maxHeight: "calc(100dvh - 320px)" }}>
         <div className="flex items-center px-4 py-2 border-b border-border mb-px">
           <span className="label-mono w-6 shrink-0" />
           <span className="label-mono w-16 shrink-0">Type</span>
@@ -296,61 +531,49 @@ export default function LivePage() {
               className="text-muted text-lg mb-2"
               style={{ fontFamily: "var(--font-pixel)" }}
             >
-              {connected ? "Listening..." : "Connecting..."}
+              Loading...
             </p>
             <p className="label-mono">
-              {connected
-                ? "Events will appear here as they happen on-chain"
-                : "Waiting for WebSocket connection to nativ"}
+              Fetching historical events and connecting to chain
             </p>
-
-            {/* Pulse indicator */}
-            {connected && (
-              <div className="flex items-center justify-center gap-1 mt-8">
-                {[0, 1, 2].map((i) => (
-                  <motion.span
-                    key={i}
-                    className="w-1 h-1 bg-muted"
-                    animate={{ opacity: [0.2, 1, 0.2] }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      delay: i * 0.3,
-                    }}
-                  />
-                ))}
-              </div>
-            )}
+            <div className="flex items-center justify-center gap-1 mt-8">
+              {[0, 1, 2].map((i) => (
+                <motion.span
+                  key={i}
+                  className="w-1 h-1 bg-muted"
+                  animate={{ opacity: [0.2, 1, 0.2] }}
+                  transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.3 }}
+                />
+              ))}
+            </div>
           </div>
         ) : (
-          <AnimatePresence initial={false}>
-            {events.map((event) => {
+          <div className="overflow-y-auto flex-1" style={{ scrollbarWidth: "none" }}>
+          <AnimatePresence>
+            {events.map((event, i) => {
               const config = typeConfig[event.type];
+              const isHistorical = event.id.startsWith("hist-");
               return (
                 <motion.div
                   key={event.id}
-                  initial={{ opacity: 0, height: 0, y: -4 }}
-                  animate={{ opacity: 1, height: "auto", y: 0 }}
-                  transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                  className="overflow-hidden"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={isHistorical
+                    ? { duration: 0.4, delay: i * 0.03, ease: [0.16, 1, 0.3, 1] }
+                    : { duration: 0.2, ease: [0.16, 1, 0.3, 1] }
+                  }
+                  className="overflow-hidden will-change-[transform,opacity]"
                 >
-                  <div className="flex items-start gap-0 px-4 py-2.5 hover:bg-surface/50 transition-[background-color] duration-150 border-b border-border/50">
-                    {/* Icon */}
-                    <span className="w-6 shrink-0 text-muted text-xs mt-px">
+                  <div className="flex items-start gap-0 px-4 py-2 border-b border-border/30 hover:bg-surface/50 transition-[background-color] duration-150">
+                    <span className="w-6 shrink-0 text-xs text-muted mt-px">
                       {config.icon}
                     </span>
-
-                    {/* Type label */}
                     <span className="w-16 shrink-0 text-[11px] tracking-[0.08em] text-fg font-medium mt-px">
                       {config.label}
                     </span>
-
-                    {/* Event text */}
                     <span className="text-xs text-[#aaaaaa] leading-relaxed flex-1">
                       {event.text}
                     </span>
-
-                    {/* Timestamp */}
                     <span className="label-mono shrink-0 tabular-nums w-20 text-right mt-px">
                       {event.timestamp.toLocaleTimeString("en-US", {
                         hour12: false,
@@ -364,6 +587,7 @@ export default function LivePage() {
               );
             })}
           </AnimatePresence>
+          </div>
         )}
       </div>
     </div>

@@ -58,6 +58,22 @@ export const AGENT_REGISTRY_ABI = [
       { name: "metadata", type: "string", indexed: false },
     ],
   },
+  {
+    type: "event",
+    name: "AgentDeregistered",
+    inputs: [
+      { name: "agent", type: "address", indexed: true },
+      { name: "name", type: "string", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "AgentUpdated",
+    inputs: [
+      { name: "agent", type: "address", indexed: true },
+      { name: "metadata", type: "string", indexed: false },
+    ],
+  },
 ] as const;
 
 export const MESSAGE_RELAY_ABI = [

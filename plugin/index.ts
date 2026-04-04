@@ -1,20 +1,42 @@
-import { resolvePrivateKey } from './src/env.js'
+import { resolvePrivateKey, getRpcUrl } from './src/env.js'
 import { connectMcp } from './src/server.js'
 import { startMessageListener, stopMessageListener } from './src/messaging.js'
 import { getBalance, fundAgentOnRollup } from './src/chain.js'
 import { state } from './src/state.js'
 
+const FAUCET_URL = process.env.NATIV_FAUCET_URL ?? 'https://nativ-faucet.s0nderlabs.xyz'
+
+async function requestFaucet(address: string): Promise<void> {
+  const res = await fetch(FAUCET_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address }),
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({})) as any
+    throw new Error(data.error ?? `faucet returned ${res.status}`)
+  }
+  const { hash, amount } = await res.json() as any
+  process.stderr.write(`nativ: faucet drip ${amount} NATIV (${hash})\n`)
+}
+
 async function main() {
   // 1. Resolve identity
   await resolvePrivateKey()
 
-  // 2. Bootstrap funding — if agent has zero balance, Gas Station sends 1 NATIV
+  // 2. Bootstrap funding — if agent has zero balance, try Gas Station then faucet
   try {
     const bal = await getBalance(state.address)
     if (parseFloat(bal) === 0) {
       process.stderr.write('nativ: zero balance, requesting bootstrap funding...\n')
-      await fundAgentOnRollup(state.address)
-      process.stderr.write('nativ: funded with 1 NATIV\n')
+      try {
+        await fundAgentOnRollup(state.address)
+        process.stderr.write('nativ: funded via Gas Station\n')
+      } catch {
+        // Gas Station not available (no mnemonic) — use public faucet
+        process.stderr.write('nativ: Gas Station unavailable, trying faucet...\n')
+        await requestFaucet(state.address)
+      }
     }
   } catch (err) {
     process.stderr.write(`nativ: bootstrap funding skipped: ${err}\n`)
