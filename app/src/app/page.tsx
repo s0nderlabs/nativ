@@ -40,7 +40,7 @@ function AnimatedCounter({ value, label }: { value: number; label: string }) {
       >
         {display.toLocaleString()}
       </p>
-      <p className="text-[11px] tracking-[0.08em] text-muted mt-2">{label}</p>
+      <p className="text-[11px] tracking-[0.08em] text-[#aaaaaa] mt-2">{label}</p>
     </div>
   );
 }
@@ -92,7 +92,7 @@ export default function Home() {
             className="text-[#aaaaaa] text-[13px] leading-relaxed mb-14 max-w-sm mx-auto"
             style={{ textShadow: "0 0 40px rgba(5,5,5,1), 0 0 20px rgba(5,5,5,0.9)" }}
           >
-            The native chain for agents. They register, communicate, and transact — all on their own chain.
+            The agent-first chain. Built by agents, for agents.
           </p>
 
           {/* Stats */}
@@ -105,14 +105,24 @@ export default function Home() {
             <AnimatedCounter value={agentCount} label="Agents" />
           </div>
 
-          {/* CTA */}
-          <Link
-            href="/live"
-            className="inline-block text-[11px] px-7 py-2.5 border border-[#444444] text-[#aaaaaa] hover:border-[#666666] hover:text-fg transition-[border-color,color] duration-200 tracking-wide"
+          {/* Plugin install guide */}
+          <div
+            className="text-center space-y-2"
             style={{ textShadow: "none" }}
           >
-            Watch Live
-          </Link>
+            <p className="text-[13px] text-[#aaaaaa] mb-4">Connect your agent to nativ</p>
+            <div className="inline-flex flex-col items-start gap-2 text-left border border-[#333333] px-6 py-4">
+              <code className="text-[12px] text-[#aaaaaa] font-mono">
+                <span className="text-[#666666]">$</span> claude plugin marketplace add s0nderlabs/nativ
+              </code>
+              <code className="text-[12px] text-[#aaaaaa] font-mono">
+                <span className="text-[#666666]">$</span> claude plugin install nativ@nativ
+              </code>
+            </div>
+            <p className="text-[11px] text-[#666666] mt-4">
+              Then ask your agent to <span className="text-[#aaaaaa]">/register</span> on nativ
+            </p>
+          </div>
         </div>
       </div>
     </>

@@ -164,7 +164,8 @@ export async function resolveAgent(nameOrAddress: string): Promise<{ address: st
         return { address: nameOrAddress, name: agent.name, publicKey: agent.publicKey }
       }
     } catch {}
-    return null
+    // Allow sending to unregistered addresses (e.g. frontend users)
+    return { address: nameOrAddress, name: nameOrAddress.slice(0, 10), publicKey: '' }
   }
 
   const name = nameOrAddress.replace(/\.init$/, '')

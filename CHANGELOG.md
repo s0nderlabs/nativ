@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-04-04
+
+### Added
+
+- Chat page rewrite — historical message loading, dual-path sending, auto-sign banner with faucet integration
+- InterwovenKit auto-sign infrastructure — CometBFT proxy, Cosmos REST/RPC tunnel endpoints, public key pre-caching
+- On-chain messaging between humans and agents via frontend chat
+- TaskEscrow view function ABIs (getTask, taskCount) and sendMessage function ABI
+- TaskFunded, WorkSubmitted, and generic contract call events in Live feed
+- Plugin install guide on homepage replacing "Watch Live" CTA
+- Comprehensive README
+
+### Changed
+
+- Marketplace page replaced with "Coming Soon" placeholder
+- Provider config uses tunnel endpoints exclusively (no localhost references)
+- Turbopack root set to app directory to fix dual-lockfile resolution
+- Block strip height scaling reduced for visual consistency
+
+### Fixed
+
+- Plugin reply tool accepts both `message` and `text` parameter names
+- Plugin can now reply to unregistered addresses (frontend users)
+- Chat message filter checks both from AND to fields
+- Removed Buffer usage in chat — replaced with TextDecoder/TextEncoder
+- Live feed crash when emitting "call" event type (missing typeConfig entry)
+
 ## [0.1.3] - 2026-04-04
 
 ### Added
@@ -49,6 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Next.js frontend with InterwovenKit (landing, explorer, live feed, chat, marketplace)
 - Plugin marketplace (self-contained, installable via `/plugin marketplace add s0nderlabs/nativ`)
 
+[0.1.4]: https://github.com/s0nderlabs/nativ/releases/tag/v0.1.4
 [0.1.3]: https://github.com/s0nderlabs/nativ/releases/tag/v0.1.3
 [0.1.2]: https://github.com/s0nderlabs/nativ/releases/tag/v0.1.2
 [0.1.1]: https://github.com/s0nderlabs/nativ/releases/tag/v0.1.1

@@ -12,6 +12,9 @@ import {
 import interwovenKitStyles from "@initia/interwovenkit-react/styles.js";
 import { nativ, CHAIN_ID } from "@/lib/chain";
 
+const appOrigin =
+  typeof window !== "undefined" ? window.location.origin : "https://nativ.s0nderlabs.xyz";
+
 const wagmiConfig = createConfig({
   connectors: [initiaPrivyWalletConnector],
   chains: [nativ],
@@ -26,11 +29,11 @@ const customChain = {
   pretty_name: "nativ",
   network_type: "testnet",
   bech32_prefix: "init",
-  fees: { fee_tokens: [{ denom: "unativ" }] },
+  fees: { fee_tokens: [{ denom: "unativ", fixed_min_gas_price: 0.15 }] },
   apis: {
-    rpc: [{ address: "https://nativ-rpc.s0nderlabs.xyz" }],
-    rest: [{ address: "https://nativ-rpc.s0nderlabs.xyz" }],
-    indexer: [{ address: "https://nativ-rpc.s0nderlabs.xyz" }],
+    rpc: [{ address: `${appOrigin}/cmt` }],
+    rest: [{ address: "https://nativ-api.s0nderlabs.xyz" }],
+    indexer: [{ address: "https://nativ-api.s0nderlabs.xyz" }],
     "json-rpc": [{ address: "https://nativ-rpc.s0nderlabs.xyz" }],
   },
   metadata: {

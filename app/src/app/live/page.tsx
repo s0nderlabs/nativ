@@ -15,7 +15,7 @@ import {
 
 type FeedEvent = {
   id: string;
-  type: "registration" | "deregistration" | "update" | "message" | "task" | "transfer" | "deploy";
+  type: "registration" | "deregistration" | "update" | "message" | "task" | "transfer" | "deploy" | "call";
   text: string;
   timestamp: Date;
   from?: string;
@@ -59,6 +59,7 @@ const typeConfig: Record<string, { label: string; icon: string }> = {
   task: { label: "TASK", icon: "◇" },
   transfer: { label: "SEND", icon: "↗" },
   deploy: { label: "DEPLOY", icon: "■" },
+  call: { label: "CALL", icon: "⚡" },
 };
 
 function BlockStrip({ blocks }: { blocks: BlockInfo[] }) {
@@ -89,22 +90,17 @@ function BlockStrip({ blocks }: { blocks: BlockInfo[] }) {
         <div className="flex items-end gap-px w-max">
           {blocks.map((block) => {
             const hasTx = block.txCount > 0;
-            const height = hasTx ? 24 + Math.min(block.txCount * 6, 24) : 16;
+            const height = hasTx ? 16 + Math.min(block.txCount * 4, 16) : 16;
             return (
               <div
                 key={block.number}
-                className="shrink-0 group relative"
-                style={{ width: 6, height }}
+                className="shrink-0 group/block relative"
+                style={{ width: 8, height }}
+                title={`#${block.number.toLocaleString()} — ${block.txCount} tx${block.txCount !== 1 ? "s" : ""}`}
               >
                 <div
-                  className={`w-full h-full ${hasTx ? "bg-fg/40" : "bg-fg/10"} group-hover:bg-fg/60 transition-[background-color] duration-150`}
+                  className={`w-full h-full ${hasTx ? "bg-fg/40" : "bg-fg/10"} group-hover/block:bg-fg/60 transition-[background-color] duration-150`}
                 />
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                  <div className="bg-surface-2 border border-border px-2 py-1 whitespace-nowrap">
-                    <p className="text-[10px] text-fg tabular-nums">#{block.number.toLocaleString()}</p>
-                    <p className="text-[10px] text-muted">{block.txCount} tx{block.txCount !== 1 ? "s" : ""}</p>
-                  </div>
-                </div>
               </div>
             );
           })}
@@ -410,6 +406,39 @@ export default function LivePage() {
       );
 
       unwatchers.push(
+        wsClient.watchContractEvent({
+          address: TASK_ESCROW_ADDRESS,
+          abi: TASK_ESCROW_ABI,
+          eventName: "TaskFunded",
+          onLogs: async (logs: any[]) => {
+            for (const log of logs) {
+              const amount = formatEther(log.args.amount ?? BigInt(0));
+              addEvent({
+                type: "task",
+                text: `Task #${log.args.taskId} funded with ${amount} NATIV`,
+              });
+            }
+          },
+        })
+      );
+
+      unwatchers.push(
+        wsClient.watchContractEvent({
+          address: TASK_ESCROW_ADDRESS,
+          abi: TASK_ESCROW_ABI,
+          eventName: "WorkSubmitted",
+          onLogs: async (logs: any[]) => {
+            for (const log of logs) {
+              addEvent({
+                type: "task",
+                text: `Work submitted for task #${log.args.taskId}`,
+              });
+            }
+          },
+        })
+      );
+
+      unwatchers.push(
         wsClient.watchBlocks({
           onBlock: async (block: any) => {
             const num = Number(block?.number ?? 0);
@@ -453,6 +482,15 @@ export default function LivePage() {
                     text: `${from} sent ${amount} NATIV to ${to}`,
                     from: tx.from,
                     to: tx.to,
+                  });
+                } else if (tx.input && tx.input.length > 10) {
+                  // Generic contract call (not a known contract, has calldata)
+                  const from = await resolveName(tx.from, httpClient);
+                  const target = tx.to ? `${tx.to.slice(0, 10)}...` : "unknown";
+                  addEvent({
+                    type: "call",
+                    text: `${from} called contract ${target}`,
+                    from: tx.from,
                   });
                 }
               }

@@ -187,7 +187,7 @@ export function createServer() {
         case 'discover': return await handleDiscover()
         case 'resolve': return await handleResolve(args.query as string)
         case 'message': return await handleMessage(args.to as string, args.message as string)
-        case 'reply': return await handleReply(args.message as string)
+        case 'reply': return await handleReply((args.message ?? args.text) as string)
         case 'balance': return await handleBalance((args.address as string) ?? state.address)
         case 'send': return await handleSend(args.to as string, args.amount as string)
         case 'read': return await handleRead(args.address as string, args.functionSignature as string, (args.args as string[]) ?? [])

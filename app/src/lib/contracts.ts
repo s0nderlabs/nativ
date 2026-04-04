@@ -78,6 +78,16 @@ export const AGENT_REGISTRY_ABI = [
 
 export const MESSAGE_RELAY_ABI = [
   {
+    type: "function",
+    name: "sendMessage",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "payload", type: "bytes" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
     type: "event",
     name: "Message",
     inputs: [
@@ -90,6 +100,35 @@ export const MESSAGE_RELAY_ABI = [
 ] as const;
 
 export const TASK_ESCROW_ABI = [
+  {
+    type: "function",
+    name: "taskCount",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getTask",
+    inputs: [{ name: "taskId", type: "uint256" }],
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        components: [
+          { name: "client", type: "address" },
+          { name: "provider", type: "address" },
+          { name: "evaluator", type: "address" },
+          { name: "budget", type: "uint256" },
+          { name: "expiredAt", type: "uint256" },
+          { name: "description", type: "bytes32" },
+          { name: "deliverable", type: "bytes32" },
+          { name: "status", type: "uint8" },
+        ],
+      },
+    ],
+    stateMutability: "view",
+  },
   {
     type: "event",
     name: "TaskCreated",
