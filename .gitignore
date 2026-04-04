@@ -15,3 +15,5 @@ skills-lock.json
 version.tex
 /tmp/
 test/
+.vercel
+.env*.local

@@ -30,8 +30,7 @@ export function HalftoneHero() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) return;
+    const ctx = canvas.getContext("2d", { alpha: false })!;
 
     stateRef.current.destroyed = false;
 
