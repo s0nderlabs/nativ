@@ -28,10 +28,10 @@ const customChain = {
   bech32_prefix: "init",
   fees: { fee_tokens: [{ denom: "unativ" }] },
   apis: {
-    rpc: [{ address: "http://localhost:26657" }],
-    rest: [{ address: "http://localhost:1317" }],
-    indexer: [{ address: "http://localhost:1317" }],
-    "json-rpc": [{ address: "http://localhost:8545" }],
+    rpc: [{ address: "https://nativ-rpc.s0nderlabs.xyz" }],
+    rest: [{ address: "https://nativ-rpc.s0nderlabs.xyz" }],
+    indexer: [{ address: "https://nativ-rpc.s0nderlabs.xyz" }],
+    "json-rpc": [{ address: "https://nativ-rpc.s0nderlabs.xyz" }],
   },
   metadata: {
     minitia: { type: "minievm" },
