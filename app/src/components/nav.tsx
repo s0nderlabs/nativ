@@ -70,6 +70,15 @@ export function Nav() {
 
   return (
     <>
+      {/* Logo — top left */}
+      <Link
+        href="/"
+        className="fixed top-3 left-6 z-50 text-fg font-bold leading-none tracking-tighter"
+        style={{ fontFamily: "var(--font-pixel)", fontSize: "2.5rem" }}
+      >
+        ti
+      </Link>
+
       {/* Navigation bar — centered */}
       <nav
         className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-1.5 py-1.5 border transition-[background-color,border-color,backdrop-filter] duration-500"
@@ -82,23 +91,12 @@ export function Nav() {
           WebkitBackdropFilter: scrolled ? "blur(20px)" : "blur(12px)",
         }}
       >
-        {links.slice(0, 2).map((link) => navLink(link, pathname))}
+        {links.map((link) => navLink(link, pathname))}
 
-        <Link
-          href="/"
-          className="text-fg font-bold text-sm tracking-tight px-4 py-1 border-x border-border"
-          style={{ fontFamily: "var(--font-pixel)" }}
-        >
-          nativ
-        </Link>
+        <span className="w-px h-4 bg-border mx-1" />
 
-        {links.slice(2).map((link) => navLink(link, pathname))}
-      </nav>
-
-      {/* Top-right — wallet */}
-      <div className="fixed top-4 right-6 z-50">
         <WalletButton />
-      </div>
+      </nav>
     </>
   );
 }

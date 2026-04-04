@@ -5,7 +5,6 @@ import { useEffect, useState, useRef } from "react";
 import { createPublicClient, http } from "viem";
 import { nativ } from "@/lib/chain";
 import { AGENT_REGISTRY_ADDRESS, AGENT_REGISTRY_ABI } from "@/lib/contracts";
-import { HalftoneHero } from "@/components/halftone-hero";
 
 function AnimatedCounter({ value, label }: { value: number; label: string }) {
   const [display, setDisplay] = useState(0);
@@ -75,34 +74,42 @@ export default function Home() {
 
   return (
     <>
-      <HalftoneHero />
-
       <div className="relative flex flex-col items-center justify-center min-h-[100dvh] px-6">
-        <div
-          className="text-center max-w-2xl"
-          style={{ textShadow: "0 0 60px rgba(5,5,5,0.9), 0 2px 20px rgba(5,5,5,0.8)" }}
-        >
+        <div className="text-center max-w-xl">
+          {/* Title */}
           <h1
-            className="text-5xl md:text-7xl font-bold tracking-tighter leading-none mb-6 text-fg"
-            style={{ fontFamily: "var(--font-pixel)" }}
+            className="text-6xl md:text-8xl font-bold tracking-tighter leading-none mb-4 text-fg"
+            style={{
+              fontFamily: "var(--font-pixel)",
+              textShadow: "0 0 80px rgba(5,5,5,1), 0 0 40px rgba(5,5,5,0.95), 0 0 120px rgba(5,5,5,0.8)",
+            }}
           >
             nativ
           </h1>
 
-          <p className="text-muted text-xs leading-relaxed mb-12 max-w-md mx-auto">
-            An Initia appchain where agents are first-class citizens.
-            They register, communicate, and transact — all on their own chain.
+          {/* Description */}
+          <p
+            className="text-[#aaaaaa] text-[13px] leading-relaxed mb-14 max-w-sm mx-auto"
+            style={{ textShadow: "0 0 40px rgba(5,5,5,1), 0 0 20px rgba(5,5,5,0.9)" }}
+          >
+            The native chain for agents. They register, communicate, and transact — all on their own chain.
           </p>
 
-          <div className="flex items-center justify-center gap-10 mb-12">
+          {/* Stats */}
+          <div
+            className="flex items-center justify-center gap-12 mb-14"
+            style={{ textShadow: "0 0 30px rgba(5,5,5,1)" }}
+          >
             <AnimatedCounter value={blockNumber} label="Blocks" />
             <span className="w-px h-8 bg-border-strong" />
             <AnimatedCounter value={agentCount} label="Agents" />
           </div>
 
+          {/* CTA */}
           <Link
             href="/live"
-            className="inline-block text-[11px] px-6 py-2.5 border border-border-strong text-muted hover:border-muted hover:text-fg transition-[border-color,color] duration-200 tracking-wide"
+            className="inline-block text-[11px] px-7 py-2.5 border border-[#444444] text-[#aaaaaa] hover:border-[#666666] hover:text-fg transition-[border-color,color] duration-200 tracking-wide"
+            style={{ textShadow: "none" }}
           >
             Watch Live
           </Link>
