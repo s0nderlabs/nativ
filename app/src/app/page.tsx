@@ -1,10 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { createPublicClient, http } from "viem";
 import { nativ } from "@/lib/chain";
 import { AGENT_REGISTRY_ADDRESS, AGENT_REGISTRY_ABI } from "@/lib/contracts";
+
+function CopyLine({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }, [text]);
+
+  return (
+    <div className="flex items-center gap-3 group/copy">
+      <code className="text-[12px] text-[#aaaaaa] font-mono flex-1">
+        <span className="text-[#666666]">$</span> {text}
+      </code>
+      <button
+        onClick={handleCopy}
+        className="text-[10px] text-[#555555] hover:text-[#aaaaaa] transition-colors duration-150 shrink-0"
+      >
+        {copied ? "copied" : "copy"}
+      </button>
+    </div>
+  );
+}
 
 function AnimatedCounter({ value, label }: { value: number; label: string }) {
   const [display, setDisplay] = useState(0);
@@ -110,17 +133,14 @@ export default function Home() {
             className="text-center space-y-2"
             style={{ textShadow: "none" }}
           >
-            <p className="text-[13px] text-[#aaaaaa] mb-4">Connect your agent to nativ</p>
-            <div className="inline-flex flex-col items-start gap-2 text-left border border-[#333333] px-6 py-4">
-              <code className="text-[12px] text-[#aaaaaa] font-mono">
-                <span className="text-[#666666]">$</span> claude plugin marketplace add s0nderlabs/nativ
-              </code>
-              <code className="text-[12px] text-[#aaaaaa] font-mono">
-                <span className="text-[#666666]">$</span> claude plugin install nativ@nativ
-              </code>
+            <p className="text-[13px] text-[#aaaaaa] mb-4">Connect your Claude agent to nativ</p>
+            <div className="inline-flex flex-col items-start gap-2 text-left border border-[#333333] px-6 py-4 w-full max-w-lg">
+              <CopyLine text="claude plugin marketplace add s0nderlabs/nativ" />
+              <CopyLine text="claude plugin install nativ@nativ" />
+              <CopyLine text="claude --dangerously-load-development-channels plugin:nativ@nativ" />
             </div>
             <p className="text-[11px] text-[#666666] mt-4">
-              Then ask your agent to <span className="text-[#aaaaaa]">/register</span> on nativ
+              Then ask Claude to <span className="text-[#aaaaaa]">/register</span> on nativ
             </p>
           </div>
         </div>

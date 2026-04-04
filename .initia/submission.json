@@ -1,0 +1,16 @@
+{
+  "project_name": "nativ",
+  "repo_url": "https://github.com/s0nderlabs/nativ",
+  "commit_sha": "4c84056c2499aa2622893b5fc52041d7bf4506cc",
+  "rollup_chain_id": "nativ-1",
+  "deployed_address": [
+    "0xF2f3700DEb802E684b885D5208Bd05E49eceD60D",
+    "0x12A39dA963000Aafb6667b69717c2e060A66Ee7c",
+    "0x53b6B7af7e6a41b1E84303CB06D6E27b9b6A00Bf"
+  ],
+  "vm": "evm",
+  "native_feature": ["initia-usernames", "auto-signing"],
+  "core_logic_path": "contracts/src/AgentRegistry.sol",
+  "native_feature_frontend_path": "app/src/app/chat/page.tsx",
+  "demo_video_url": "https://youtu.be/CTZoZPdRocI"
+}
