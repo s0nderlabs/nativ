@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import { createPublicClient, http, webSocket, formatEther } from "viem";
-import { motion, AnimatePresence } from "framer-motion";
 import { nativ } from "@/lib/chain";
 import {
   AGENT_REGISTRY_ADDRESS,
@@ -45,41 +44,29 @@ async function resolveName(address: string, client: any): Promise<string> {
   return short;
 }
 
-const typeConfig: Record<string, { label: string; icon: string }> = {
-  registration: { label: "REG", icon: "+" },
-  message: { label: "MSG", icon: "→" },
-  task: { label: "TASK", icon: "◇" },
-  transfer: { label: "SEND", icon: "↗" },
-  deploy: { label: "DEPLOY", icon: "■" },
+const typeLabels: Record<string, string> = {
+  registration: "REG",
+  message: "MSG",
+  task: "TASK",
+  transfer: "SEND",
+  deploy: "DEPLOY",
 };
-
-function EventCount({ count, label }: { count: number; label: string }) {
-  return (
-    <div className="text-right">
-      <p className="text-sm font-bold tabular-nums text-fg">{count}</p>
-      <p className="label-mono">{label}</p>
-    </div>
-  );
-}
 
 export default function LivePage() {
   const [events, setEvents] = useState<FeedEvent[]>([]);
   const [connected, setConnected] = useState(false);
-  const [blockNumber, setBlockNumber] = useState(0);
+  const feedRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const httpClient = createPublicClient({ chain: nativ, transport: http() });
     let wsClient: any;
     const unwatchers: (() => void)[] = [];
 
-    // Fetch initial block number
-    httpClient.getBlockNumber().then((b) => setBlockNumber(Number(b))).catch(() => {});
-
     async function start() {
       try {
         wsClient = createPublicClient({
           chain: nativ,
-          transport: webSocket("wss://nativ-ws.s0nderlabs.xyz"),
+          transport: webSocket("ws://localhost:8546"),
         });
         setConnected(true);
       } catch {
@@ -117,10 +104,7 @@ export default function LivePage() {
               const to = await resolveName(log.args.to, httpClient);
               let preview = "";
               try {
-                const raw = Buffer.from(
-                  (log.args.payload as string).slice(2),
-                  "hex"
-                ).toString("utf-8");
+                const raw = Buffer.from((log.args.payload as string).slice(2), "hex").toString("utf-8");
                 if (raw.length < 100 && !raw.includes("\x00")) {
                   preview = ` — "${raw.slice(0, 60)}"`;
                 }
@@ -174,7 +158,6 @@ export default function LivePage() {
       unwatchers.push(
         wsClient.watchBlocks({
           onBlock: async (block: any) => {
-            setBlockNumber(Number(block.number));
             try {
               const fullBlock = await httpClient.getBlock({
                 blockNumber: block.number,
@@ -184,9 +167,7 @@ export default function LivePage() {
                 if (typeof tx === "string") continue;
                 if (!tx.to) {
                   const from = await resolveName(tx.from, httpClient);
-                  const receipt = await httpClient.getTransactionReceipt({
-                    hash: tx.hash,
-                  });
+                  const receipt = await httpClient.getTransactionReceipt({ hash: tx.hash });
                   addEvent({
                     type: "deploy",
                     text: `${from} deployed contract at ${receipt.contractAddress?.slice(0, 10)}...`,
@@ -233,19 +214,13 @@ export default function LivePage() {
     };
   }, []);
 
-  // Event type counts
-  const counts = events.reduce(
-    (acc, e) => {
-      acc[e.type] = (acc[e.type] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
+  useEffect(() => {
+    feedRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [events]);
 
   return (
-    <div className="max-w-5xl mx-auto px-6 pt-24 pb-10">
-      {/* Header */}
-      <div className="flex items-end justify-between mb-10">
+    <div className="max-w-4xl mx-auto px-6 pt-24 pb-10">
+      <div className="flex items-center justify-between mb-8">
         <div>
           <h1
             className="text-2xl font-bold tracking-tight"
@@ -255,116 +230,42 @@ export default function LivePage() {
           </h1>
           <p className="label-mono mt-1">Real-time chain activity</p>
         </div>
-
-        <div className="flex items-center gap-6">
-          {/* Connection status */}
-          <div className="flex items-center gap-2">
-            <span
-              className={`w-1.5 h-1.5 ${connected ? "bg-fg animate-pulse" : "bg-muted"}`}
-            />
-            <span className="label-mono">
-              {connected ? "Connected" : "Disconnected"}
-            </span>
-          </div>
-
-          <span className="w-px h-6 bg-border" />
-
-          <EventCount count={events.length} label="Events" />
-          <span className="w-px h-6 bg-border" />
-          <div className="text-right">
-            <p className="text-sm font-bold tabular-nums text-fg">
-              {blockNumber.toLocaleString()}
-            </p>
-            <p className="label-mono">Block</p>
-          </div>
+        <div className="flex items-center gap-2">
+          <span
+            className={`w-1.5 h-1.5 ${connected ? "bg-fg animate-pulse" : "bg-muted"}`}
+          />
+          <span className="label-mono">{connected ? "Connected" : "Disconnected"}</span>
         </div>
       </div>
 
-      {/* Feed */}
-      <div>
-        {/* Column headers */}
-        <div className="flex items-center px-4 py-2 border-b border-border mb-px">
-          <span className="label-mono w-6 shrink-0" />
-          <span className="label-mono w-16 shrink-0">Type</span>
-          <span className="label-mono flex-1">Event</span>
-          <span className="label-mono w-20 text-right">Time</span>
-        </div>
-
-        {events.length === 0 ? (
-          <div className="text-center py-24">
-            <p
-              className="text-muted text-lg mb-2"
-              style={{ fontFamily: "var(--font-pixel)" }}
-            >
-              {connected ? "Listening..." : "Connecting..."}
-            </p>
-            <p className="label-mono">
-              {connected
-                ? "Events will appear here as they happen on-chain"
-                : "Waiting for WebSocket connection to nativ"}
-            </p>
-
-            {/* Pulse indicator */}
-            {connected && (
-              <div className="flex items-center justify-center gap-1 mt-8">
-                {[0, 1, 2].map((i) => (
-                  <motion.span
-                    key={i}
-                    className="w-1 h-1 bg-muted"
-                    animate={{ opacity: [0.2, 1, 0.2] }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      delay: i * 0.3,
-                    }}
-                  />
-                ))}
-              </div>
-            )}
+      <div ref={feedRef} className="space-y-px">
+        {events.length === 0 && (
+          <div className="text-center py-20">
+            <p className="text-muted text-sm">Waiting for activity...</p>
+            <p className="label-mono mt-2">Events will appear here in real-time</p>
           </div>
-        ) : (
-          <AnimatePresence initial={false}>
-            {events.map((event) => {
-              const config = typeConfig[event.type];
-              return (
-                <motion.div
-                  key={event.id}
-                  initial={{ opacity: 0, height: 0, y: -4 }}
-                  animate={{ opacity: 1, height: "auto", y: 0 }}
-                  transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                  className="overflow-hidden"
-                >
-                  <div className="flex items-start gap-0 px-4 py-2.5 hover:bg-surface/50 transition-[background-color] duration-150 border-b border-border/50">
-                    {/* Icon */}
-                    <span className="w-6 shrink-0 text-muted text-xs mt-px">
-                      {config.icon}
-                    </span>
-
-                    {/* Type label */}
-                    <span className="w-16 shrink-0 text-[11px] tracking-[0.08em] text-fg font-medium mt-px">
-                      {config.label}
-                    </span>
-
-                    {/* Event text */}
-                    <span className="text-xs text-[#aaaaaa] leading-relaxed flex-1">
-                      {event.text}
-                    </span>
-
-                    {/* Timestamp */}
-                    <span className="label-mono shrink-0 tabular-nums w-20 text-right mt-px">
-                      {event.timestamp.toLocaleTimeString("en-US", {
-                        hour12: false,
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                      })}
-                    </span>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
         )}
+        {events.map((event) => (
+          <div
+            key={event.id}
+            className="flex items-start gap-3 py-2.5 px-3 hover:bg-surface transition-[background-color] duration-150"
+          >
+            <span className="label-mono shrink-0 w-14 text-fg font-medium">
+              {typeLabels[event.type]}
+            </span>
+            <span className="text-xs leading-relaxed flex-1">
+              {event.text}
+            </span>
+            <span className="label-mono shrink-0 tabular-nums">
+              {event.timestamp.toLocaleTimeString("en-US", {
+                hour12: false,
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );

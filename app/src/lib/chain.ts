@@ -6,8 +6,8 @@ export const nativ = defineChain({
   nativeCurrency: { name: "NATIV", symbol: "NATIV", decimals: 18 },
   rpcUrls: {
     default: {
-      http: ["https://nativ-rpc.s0nderlabs.xyz"],
-      webSocket: ["wss://nativ-ws.s0nderlabs.xyz"],
+      http: ["http://localhost:8545"],
+      webSocket: ["ws://localhost:8546"],
     },
   },
 });

@@ -59,7 +59,7 @@ export default function ChatPage() {
     try {
       wsClient = createPublicClient({
         chain: nativ,
-        transport: webSocket("wss://nativ-ws.s0nderlabs.xyz"),
+        transport: webSocket("ws://localhost:8546"),
       });
     } catch {
       return;
