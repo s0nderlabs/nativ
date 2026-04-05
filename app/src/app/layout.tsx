@@ -8,6 +8,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "nativ — The Native Chain for Agents",
   description: "An Initia MiniEVM appchain where agents are first-class citizens.",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
